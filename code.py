@@ -9,10 +9,16 @@ joy - 32(GP27/ADC1)
 import board
 import time
 import usb_hid
+import analogio
 
 from digitalio import DigitalInOut, Direction, Pull
 from adafruit_hid.keyboard import Keyboard
 from adafruit_hid.keycode import Keycode
+
+jox = analogio.AnalogIn(board.GP27)
+joy = analogio.AnalogIn(board.GP26)
+
+print("hello")
 
 bt1 = DigitalInOut(board.GP19)
 bt1.direction = Direction.INPUT
@@ -32,6 +38,7 @@ bt2Released = True
 btjReleased = True
 AltTabToggle = False
 AltTabCounter = 0
+focusShift = False
 
 def windowsTaskbarSwitch(number):
         if number > 9:
@@ -44,6 +51,21 @@ def windowsTaskbarSwitch(number):
         keyboard.release(keyCode)
         time.sleep(0.2)
         keyboard.release(Keycode.GUI)
+
+def joystickAction(val, a, b):
+    event = False
+    if val < 1000:
+        keyboard.press(a)
+        keyboard.release(a)
+        event = True
+        time.sleep(0.2)
+    if val > 50000:
+        keyboard.press(b)
+        keyboard.release(b)
+        event = True
+        time.sleep(0.2)
+    return event
+
 
 while True:
     if not bt1.value and bt1Released:
@@ -67,9 +89,6 @@ while True:
         if not AltTabToggle:
             keyboard.press(Keycode.ALT, Keycode.TAB)
             keyboard.release(Keycode.TAB)
-            time.sleep(0.2)
-            keyboard.press(Keycode.LEFT_ARROW)
-            keyboard.release(Keycode.LEFT_ARROW)
         else:
             keyboard.release(Keycode.TAB)
             keyboard.release(Keycode.ALT)
@@ -77,11 +96,21 @@ while True:
     elif btj.value and not btjReleased:
         btjReleased = True
         AltTabToggle = not AltTabToggle
-    
-    if AltTabCounter > 20000:
+
+    joxEvent = joystickAction(jox.value, Keycode.RIGHT_ARROW, Keycode.LEFT_ARROW)
+    joyEvent = joystickAction(joy.value, Keycode.UP_ARROW, Keycode.DOWN_ARROW)
+    if joxEvent or joyEvent:
+        focusShift = True
         AltTabCounter = 0
+ 
+    if AltTabCounter > 15000:
+        AltTabCounter = 0
+        if not focusShift:
+            keyboard.press(Keycode.LEFT_ARROW)
+            keyboard.release(Keycode.LEFT_ARROW)
         keyboard.release(Keycode.TAB)
         keyboard.release(Keycode.ALT)
         AltTabToggle = False
+        focusShift = False
     if AltTabToggle:
         AltTabCounter += 1
